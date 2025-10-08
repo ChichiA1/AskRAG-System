@@ -1,4 +1,3 @@
-
 from backend import config
 import os
 import ollama
@@ -47,12 +46,12 @@ class DocumentGenerator:
     # Document Generation
     # ------------------------------
     def process_documents(
-        self,
-        template: str,
-        data_list: list,
-        doc_type: str = "generic",
-        base_output_dir: str = "./generated_docs",
-        header_template: str = None,
+            self,
+            template: str,
+            data_list: list,
+            doc_type: str = "generic",
+            base_output_dir: str = "./generated_docs",
+            header_template: str = None,
     ):
         """Generate multiple documents and save them under a type-specific folder."""
         output_dir = os.path.join(base_output_dir, doc_type.lower())
@@ -61,11 +60,11 @@ class DocumentGenerator:
         for i, item in enumerate(data_list, 1):
             # Determine a name for the document (employee_name, product_type, etc.)
             name_key = (
-                item.get("employee_name")
-                or item.get("product_type")
-                or item.get("title")
-                or item.get("name")
-                or f"Document_{i}"
+                    item.get("employee_name")
+                    or item.get("product_type")
+                    or item.get("title")
+                    or item.get("name")
+                    or f"Document_{i}"
             )
 
             print(f"[{i}/{len(data_list)}] Generating {doc_type} file for {name_key}")
@@ -92,20 +91,20 @@ class DocumentGenerator:
     # Convenience Entry Point
     # ------------------------------
     def run(
-        self,
-        template: str,
-        data_list: list,
-        doc_type: str,
-        base_output_dir: str = "./generated_docs",
-        header_template: str = """---
-        Company: Oilwell Corporation
-        Document Number: OW-DOC-{doc_number}
-        Date: 2025-10-07
-        Classification: Internal Use Only
-        ---
+            self,
+            template: str,
+            data_list: list,
+            doc_type: str,
+            base_output_dir: str = "./generated_docs",
+            header_template: str = """---
+            Company: Oilwell Corporation
+            Document Number: OW-DOC-{doc_number}
+            Date: 2025-10-07
+            Classification: Internal Use Only
+            ---
         
         """,
-        ):
+    ):
         """Simplified entrypoint for document generation."""
         self.process_documents(
             template=template,
@@ -324,5 +323,3 @@ if __name__ == "__main__":
         ]
 
         generator.run(template, data, doc_type="policies")
-
-
