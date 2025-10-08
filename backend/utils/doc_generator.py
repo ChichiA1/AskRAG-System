@@ -1,3 +1,5 @@
+
+from backend import config
 import os
 import ollama
 
@@ -8,7 +10,7 @@ class DocumentGenerator:
     Automatically organizes files into folders by document type.
     """
 
-    def __init__(self, model_name="llama3:8b", temperature=0.7, num_predict=2000):
+    def __init__(self, model_name=config.MODEL, temperature=0.7, num_predict=10000):
         self.model = model_name
         self.temperature = temperature
         self.num_predict = num_predict
@@ -29,10 +31,10 @@ class DocumentGenerator:
     # Template Utilities
     # ------------------------------
     @staticmethod
-    def fill_template(template: str, context: dict) -> str:
+    def fill_template(query: str, context: dict) -> str:
         """Fill a prompt template with variables from a dictionary."""
         try:
-            return template.format(**context)
+            return query.format(**context)
         except KeyError as e:
             raise ValueError(f"Missing placeholder in context: {e}")
 
@@ -120,7 +122,7 @@ class DocumentGenerator:
 if __name__ == "__main__":
     generator = DocumentGenerator()
 
-    mode = "employee"  # can be "product", "contract", etc.
+    mode = "contract"  # can be "product", "contract", etc.
 
     if mode == "product":
         template = """Generate product documentation for Oilwell Corporation.
@@ -141,7 +143,7 @@ if __name__ == "__main__":
         data = [
             {"product_type": "Centrifugal Pump - Multistage"},
             {"product_type": "Pressure Sensor - Digital Transmitter"},
-            {"product_type": "Centrifugal Pump - Multistage"},
+            {"product_type": "Leak Detection and Repair - Tools"},
             {"product_type": "Wellhead Control Valve - High Pressure Gate Valve"},
             {"product_type": "Downhole Drilling Tool - Rotary Steerable System"},
         ]
@@ -233,6 +235,94 @@ if __name__ == "__main__":
                 "effective_date": "2023-06-15",
                 "term": "3 years",
             },
+            {
+                "title": "Logistics and Transportation Agreement - TransMove Logistics",
+                "parties": "Oilwell Corporation and TransMove Logistics Ltd.",
+                "effective_date": "2024-05-10",
+                "term": "1 year, renewable",
+            },
+            {
+                "title": "Consulting Services Agreement - PetroConsult Energy Advisors",
+                "parties": "Oilwell Corporation and PetroConsult Energy Advisors Inc.",
+                "effective_date": "2025-01-01",
+                "term": "18 months",
+            },
+            {
+                "title": "Software Licensing Agreement - TechWave Solutions",
+                "parties": "Oilwell Corporation and TechWave Solutions LLC",
+                "effective_date": "2024-09-01",
+                "term": "3 years",
+            },
         ]
         generator.run(template, data, doc_type="contracts")
+
+    elif mode == "policy":
+        template = """Generate a company policy document for Oilwell Corporation.
+
+        Policy Title: {title}
+        Department Responsible: {department}
+        Effective Date: {effective_date}
+        Review Cycle: {review_cycle}
+
+        Format as markdown with these sections:
+
+        # Policy: {title}
+
+        ## Purpose
+        [Explain why this policy exists and its objectives.]
+
+        ## Scope
+        [Define who and what this policy applies to.]
+
+        ## Policy Statement
+        [State the key rules, standards, or expectations clearly.]
+
+        ## Procedures
+        [List the specific procedures or steps employees should follow.]
+
+        ## Responsibilities
+        [Define the roles and responsibilities of employees, managers, and departments.]
+
+        ## Compliance
+        [Outline how compliance will be monitored and enforced.]
+
+        ## Review & Revision
+        [Describe the review cycle and update procedures.]
+        """
+
+        data = [
+            {
+                "title": "Workplace Health and Safety Policy",
+                "department": "Health, Safety, and Environment (HSE)",
+                "effective_date": "2025-01-01",
+                "review_cycle": "Annual",
+            },
+            {
+                "title": "Code of Conduct and Ethics Policy",
+                "department": "Human Resources / Compliance",
+                "effective_date": "2025-01-01",
+                "review_cycle": "Every 2 years",
+            },
+            {
+                "title": "Data Protection and Privacy Policy",
+                "department": "Information Technology (IT)",
+                "effective_date": "2025-02-01",
+                "review_cycle": "Annual",
+            },
+            {
+                "title": "Environmental Sustainability Policy",
+                "department": "Health, Safety, and Environment (HSE)",
+                "effective_date": "2025-03-01",
+                "review_cycle": "Every 3 years",
+            },
+            {
+                "title": "Equal Employment Opportunity Policy",
+                "department": "Human Resources",
+                "effective_date": "2025-01-15",
+                "review_cycle": "Every 2 years",
+            },
+        ]
+
+        generator.run(template, data, doc_type="policies")
+
 
