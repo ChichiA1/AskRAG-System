@@ -41,9 +41,9 @@ class Chunker:
                         doc.metadata["doc_type"] = doc_type
                         documents.append(doc)
             else:
-                return f"No subfolders found in {base_path.resolve()}"
+                raise ValueError(f"No subfolders found in {base_path.resolve()}")
         else:
-            return f"The specified path does not exist: {base_path.resolve()}"
+            raise ValueError(f"The specified path does not exist: {base_path.resolve()}")
         return documents
 
     def chunk(self) -> list:
@@ -64,4 +64,5 @@ if __name__ == "__main__":
     docs = chunker.chunk()
     r_chunks = chunker.chunk()
     print(len(r_chunks))
-    print(f"Document types: {', '.join((set(chunk.metadata['doc_type'] for chunk in r_chunks)))}")
+    print(f"Document types: {', '.join((set(str(chunk.metadata['doc_type']) for chunk in r_chunks)))}")
+

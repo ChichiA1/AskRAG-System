@@ -209,3 +209,5 @@ __marimo__/
 #code
 .idea/
 backend/utils/generated_docs/
+2.3.1
+backend/vector_db
