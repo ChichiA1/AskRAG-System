@@ -1,11 +1,19 @@
 import config
 import gradio as gr
 from backend.RAG_helper.embedding import VectorEmbedding
+from backend.RAG_helper.prompt_manager import get_prompts
+from backend.RAG_helper.intent_classifier import (
+    get_doc_types,
+    build_intent_classifier,
+    detect_intent
+)
 from langchain_openai import ChatOpenAI
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain.schema import HumanMessage, AIMessage
+from langchain.callbacks import StdOutCallbackHandler
+from langchain.prompts import PromptTemplate
 import warnings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -13,75 +21,106 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # --- Function to initialize system once ---
 def initialize_chatbot():
-    """Initialize and return a persistent conversational retrieval chain."""
-    print(" Initializing chatbot components...")
+    """Initialize and return all persistent chatbot components."""
+    print("🔧 Initializing chatbot components...")
 
-    # Vectorstore (persistent)
+    # Vectorstore
     vectorstore = VectorEmbedding().load_vector()
     retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-    # LLM (persistent)
+    # Dynamically extract document categories from metadata
+    doc_types = get_doc_types(vectorstore)
+    print(f"Found doc_type categories: {doc_types}")
+
+    # Build LLM intent classifier using those doc_types
+    intent_chain = build_intent_classifier(doc_types)
+
+    # LLM
     llm = ChatOpenAI(
         base_url="http://localhost:11434/v1",
-        api_key="ollama",  # Dummy key (Ollama ignores it)
+        api_key="ollama",
         model=config.MODEL,
         temperature=0.7,
     )
 
-    # Memory (persistent)
+    # Memory
     chat_history = ChatMessageHistory()
     memory = ConversationBufferMemory(
         memory_key="chat_history",
         chat_memory=chat_history,
-        return_messages=True,  # Changed from output_messages
+        return_messages=True,
         output_key="answer"
     )
 
-    # Chain (persistent)
-    conversation_chain = ConversationalRetrievalChain.from_llm(
-        llm=llm,
-        retriever=retriever,
-        memory=memory,
-        return_source_documents=True
-    )
+    # Prompt templates
+    prompts = get_prompts()
 
-    print("✓ Chatbot initialized successfully!")
-    return conversation_chain
+    print("Chatbot initialized successfully!")
+
+    return {
+        "retriever": retriever,
+        "llm": llm,
+        "memory": memory,
+        "prompts": prompts,
+        "intent_chain": intent_chain,
+        "doc_types": doc_types
+    }
 
 
-# --- Cached initialization, so it only runs once ---
-_chatbot_chain = None
+# --- Cache initialization (so it runs only once) ---
+_chatbot_components = None
 
 
-def get_chatbot_chain():
-    global _chatbot_chain
-    if _chatbot_chain is None:
-        _chatbot_chain = initialize_chatbot()
-    return _chatbot_chain
+def get_chatbot_components():
+    global _chatbot_components
+    if _chatbot_components is None:
+        _chatbot_components = initialize_chatbot()
+    return _chatbot_components
 
 
 # --- Chat handler ---
 def chat(message, history):
     """
-    Handle chat with proper history format.
-    Gradio history format (messages): [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}, ...]
+    Handle chat with LangChain + Gradio integration.
+    Gradio format: [{"role": "user", "content": ...}, {"role": "assistant", "content": ...}]
     """
-    chain = get_chatbot_chain()
+    components = get_chatbot_components()
+
+    retriever = components["retriever"]
+    llm = components["llm"]
+    memory = components["memory"]
+    prompts = components["prompts"]
+    intent_chain = components["intent_chain"]
+    doc_types = components["doc_types"]
 
     # Sync Gradio history with LangChain memory
-    # Clear existing memory and rebuild from Gradio history
-    chain.memory.chat_memory.clear()
-
+    memory.chat_memory.clear()
     if history:
         for msg in history:
             if msg["role"] == "user":
-                chain.memory.chat_memory.add_message(HumanMessage(content=msg["content"]))
+                memory.chat_memory.add_message(HumanMessage(content=msg["content"]))
             elif msg["role"] == "assistant":
-                chain.memory.chat_memory.add_message(AIMessage(content=msg["content"]))
+                memory.chat_memory.add_message(AIMessage(content=msg["content"]))
 
-    # Invoke chain with new message
+    # --- Detect user intent dynamically ---
+    intent = detect_intent(message, intent_chain, doc_types)
+    print(f"Detected intent: {intent}")
+
+    # --- Pick appropriate prompt ---
+    prompt = prompts.get(intent, prompts["general"])
+
+    # --- Build a Conversational Retrieval Chain ---
+    chain = ConversationalRetrievalChain.from_llm(
+        llm=llm,
+        retriever=retriever,
+        memory=memory,
+        combine_docs_chain_kwargs={"prompt": prompt},
+        callbacks=[StdOutCallbackHandler()],
+        return_source_documents=True
+    )
+
+    # --- Generate answer ---
     result = chain.invoke({"question": message})
-
     return result["answer"]
 
 
@@ -91,10 +130,11 @@ def gradio_view():
         fn=chat,
         type="messages",
         title="🛢️ Oilwell Corporation Chatbot",
-        description="Ask questions about Oilwell's people, products and documentation"
+        description="Ask questions about Oilwell's people, products, and documentation",
     )
     demo.launch(inbrowser=True)
 
 
 if __name__ == "__main__":
     gradio_view()
+
