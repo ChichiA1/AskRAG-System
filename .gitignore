@@ -210,5 +210,5 @@ __marimo__/
 .idea/
 backend/utils/generated_docs/
 2.3.1
-test.py
 backend/vector_db
+test.py
